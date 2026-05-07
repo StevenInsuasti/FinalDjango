@@ -70,12 +70,28 @@ class ReservaListView(LoginRequiredMixin, ListView):
         Agrega al contexto:
         - filtro_form: el formulario de filtros con los valores actuales.
         - filtro_fecha / filtro_laboratorio: valores para mantener en paginación.
+        - laboratorios_disponibles: lista de laboratorios únicos para el datalist.
         """
         ctx = super().get_context_data(**kwargs)
         ctx['filtro_form'] = self.filtro_form
         # Valores planos para construir URLs de paginación en el template
         ctx['filtro_fecha'] = self.request.GET.get('fecha', '')
         ctx['filtro_laboratorio'] = self.request.GET.get('laboratorio', '')
+        # Lista de laboratorios únicos registrados (para sugerencias en el filtro)
+        # El administrador ve todos; el docente solo los suyos
+        if self.request.user.is_staff:
+            ctx['laboratorios_disponibles'] = (
+                Reserva.objects.values_list('laboratorio', flat=True)
+                .distinct()
+                .order_by('laboratorio')
+            )
+        else:
+            ctx['laboratorios_disponibles'] = (
+                Reserva.objects.filter(usuario=self.request.user)
+                .values_list('laboratorio', flat=True)
+                .distinct()
+                .order_by('laboratorio')
+            )
         return ctx
 
 

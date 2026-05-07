@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+
+{% block title %}Sesión cerrada{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="alert alert-success text-center">
+            <h4>Sesión cerrada correctamente</h4>
+            <a href="{% url 'login' %}" class="btn btn-primary mt-2">Iniciar sesión</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

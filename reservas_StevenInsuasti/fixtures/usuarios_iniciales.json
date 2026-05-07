@@ -1,0 +1,102 @@
+[
+{
+  "model": "auth.user",
+  "pk": 1,
+  "fields": {
+    "password": "pbkdf2_sha256$1200000$YOv6ZmlE29bOuKKNQKBTin$Oo3rn6U7GBMrzGuDYinSPNLlqeU96OcvSUWy5VI4OZM=",
+    "last_login": null,
+    "is_superuser": true,
+    "username": "admin_reservas",
+    "first_name": "Admin",
+    "last_name": "Reservas",
+    "email": "admin@reservas.com",
+    "is_staff": true,
+    "is_active": true,
+    "date_joined": "2026-05-07T15:14:51.328Z",
+    "groups": [
+      2
+    ],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "pk": 2,
+  "fields": {
+    "password": "pbkdf2_sha256$1200000$CZlNLwxXABjkRKTQjlCmT5$nFtmp2MSi5xwZ/xFMQrZdz3hiNqpfKk26acaBnzK+qI=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "docente1",
+    "first_name": "Carlos",
+    "last_name": "Ramirez",
+    "email": "docente1@reservas.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-05-07T15:14:52.162Z",
+    "groups": [
+      1
+    ],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "pk": 3,
+  "fields": {
+    "password": "pbkdf2_sha256$1200000$BfbZHx1OmTwmAaBqKUR4Hs$DvCswz+k3X1wdykACBPbCqtdCSqXopS4XQYwwh2IMM8=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "docente2",
+    "first_name": "Maria",
+    "last_name": "Lopez",
+    "email": "docente2@reservas.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-05-07T15:14:53.293Z",
+    "groups": [
+      1
+    ],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.group",
+  "pk": 1,
+  "fields": {
+    "name": "Docente",
+    "permissions": []
+  }
+},
+{
+  "model": "auth.group",
+  "pk": 2,
+  "fields": {
+    "name": "Administrador",
+    "permissions": []
+  }
+},
+{
+  "model": "auth.user_groups",
+  "pk": 1,
+  "fields": {
+    "user": 1,
+    "group": 2
+  }
+},
+{
+  "model": "auth.user_groups",
+  "pk": 2,
+  "fields": {
+    "user": 2,
+    "group": 1
+  }
+},
+{
+  "model": "auth.user_groups",
+  "pk": 3,
+  "fields": {
+    "user": 3,
+    "group": 1
+  }
+}
+]

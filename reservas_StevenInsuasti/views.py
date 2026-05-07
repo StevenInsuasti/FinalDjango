@@ -13,20 +13,20 @@ from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 
 from .models import Reserva
-from .forms import ReservaForm
+from .forms import ReservaForm, ReservaFiltroForm
 
 
 # ─────────────────────────────────────────────────────────────
-# LISTVIEW — Lista todas las reservas del usuario autenticado.
-# Los administradores (is_staff) ven todas las reservas.
+# LISTVIEW — Lista reservas con filtros por fecha y laboratorio
 # ─────────────────────────────────────────────────────────────
 class ReservaListView(LoginRequiredMixin, ListView):
     """
-    Muestra el listado de reservas.
+    Muestra el listado de reservas con filtros de búsqueda.
 
     - Docente: solo ve sus propias reservas.
     - Administrador (is_staff): ve todas las reservas.
-    - Soporta filtros por fecha y laboratorio via GET params.
+    - Filtro por fecha: coincidencia exacta con el campo 'fecha'.
+    - Filtro por laboratorio: búsqueda parcial (icontains).
     """
 
     model = Reserva
@@ -35,36 +35,52 @@ class ReservaListView(LoginRequiredMixin, ListView):
     paginate_by = 10
 
     def get_queryset(self):
-        """Filtra reservas según el rol del usuario y parámetros GET."""
-        qs = Reserva.objects.select_related('usuario')
+        """
+        Construye el queryset aplicando:
+        1. Restricción por rol (docente vs administrador).
+        2. Filtro por fecha exacta si se proporcionó.
+        3. Filtro por laboratorio (búsqueda parcial) si se proporcionó.
+        """
+        qs = Reserva.objects.select_related('usuario').order_by('-fecha', 'hora_inicio')
 
         # Administrador ve todo; docente solo sus reservas
         if not self.request.user.is_staff:
             qs = qs.filter(usuario=self.request.user)
 
-        # Filtro por fecha
-        fecha = self.request.GET.get('fecha')
-        if fecha:
-            qs = qs.filter(fecha=fecha)
+        # Validar y limpiar los parámetros GET con el formulario de filtros
+        self.filtro_form = ReservaFiltroForm(self.request.GET)
 
-        # Filtro por laboratorio
-        laboratorio = self.request.GET.get('laboratorio')
-        if laboratorio:
-            qs = qs.filter(laboratorio__icontains=laboratorio)
+        if self.filtro_form.is_valid():
+            fecha = self.filtro_form.cleaned_data.get('fecha')
+            laboratorio = self.filtro_form.cleaned_data.get('laboratorio')
+
+            # ── Filtro por fecha exacta ──
+            # Usa el ORM: Reserva.objects.filter(fecha=fecha)
+            if fecha:
+                qs = qs.filter(fecha=fecha)
+
+            # ── Filtro por laboratorio (parcial, sin importar mayúsculas) ──
+            if laboratorio:
+                qs = qs.filter(laboratorio__icontains=laboratorio)
 
         return qs
 
     def get_context_data(self, **kwargs):
-        """Agrega los filtros activos al contexto para mostrarlos en el template."""
+        """
+        Agrega al contexto:
+        - filtro_form: el formulario de filtros con los valores actuales.
+        - filtro_fecha / filtro_laboratorio: valores para mantener en paginación.
+        """
         ctx = super().get_context_data(**kwargs)
+        ctx['filtro_form'] = self.filtro_form
+        # Valores planos para construir URLs de paginación en el template
         ctx['filtro_fecha'] = self.request.GET.get('fecha', '')
         ctx['filtro_laboratorio'] = self.request.GET.get('laboratorio', '')
         return ctx
 
 
 # ─────────────────────────────────────────────────────────────
-# CREATEVIEW — Crea una nueva reserva.
-# Solo usuarios autenticados pueden crear reservas.
+# CREATEVIEW — Crea una nueva reserva
 # ─────────────────────────────────────────────────────────────
 class ReservaCreateView(LoginRequiredMixin, CreateView):
     """
@@ -72,6 +88,7 @@ class ReservaCreateView(LoginRequiredMixin, CreateView):
 
     El campo 'usuario' se asigna automáticamente al usuario actual.
     El estado inicial siempre es 'pendiente'.
+    Las validaciones de conflicto se ejecutan en ReservaForm.clean().
     """
 
     model = Reserva
@@ -83,8 +100,19 @@ class ReservaCreateView(LoginRequiredMixin, CreateView):
         """Asigna el usuario actual y estado pendiente antes de guardar."""
         form.instance.usuario = self.request.user
         form.instance.estado = Reserva.ESTADO_PENDIENTE
-        messages.success(self.request, 'Reserva creada exitosamente. Queda pendiente de aprobación.')
+        messages.success(
+            self.request,
+            '✅ Reserva creada exitosamente. Queda pendiente de aprobación.'
+        )
         return super().form_valid(form)
+
+    def form_invalid(self, form):
+        """Muestra mensaje de error cuando el formulario no es válido."""
+        messages.error(
+            self.request,
+            '❌ No se pudo crear la reserva. Revisa los errores indicados.'
+        )
+        return super().form_invalid(form)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -94,9 +122,7 @@ class ReservaCreateView(LoginRequiredMixin, CreateView):
 
 
 # ─────────────────────────────────────────────────────────────
-# UPDATEVIEW — Edita una reserva existente.
-# Solo se permite editar si el estado es 'pendiente'.
-# El docente solo puede editar sus propias reservas.
+# UPDATEVIEW — Edita una reserva existente
 # ─────────────────────────────────────────────────────────────
 class ReservaUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     """
@@ -114,31 +140,31 @@ class ReservaUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     success_url = reverse_lazy('reservas:lista')
 
     def test_func(self):
-        """
-        UserPassesTestMixin: define quién puede acceder.
-        Retorna True si el usuario tiene permiso de editar.
-        """
         reserva = self.get_object()
-        # Solo se puede editar si está pendiente
         if not reserva.es_pendiente:
             return False
-        # Administrador puede editar cualquier reserva pendiente
         if self.request.user.is_staff:
             return True
-        # Docente solo puede editar sus propias reservas
         return reserva.usuario == self.request.user
 
     def handle_no_permission(self):
-        """Mensaje de error cuando no se tiene permiso."""
         messages.error(
             self.request,
-            'No puedes editar esta reserva. Solo se pueden editar reservas en estado Pendiente.'
+            '⛔ No puedes editar esta reserva. '
+            'Solo se pueden editar reservas en estado Pendiente.'
         )
         return super().handle_no_permission()
 
     def form_valid(self, form):
-        messages.success(self.request, 'Reserva actualizada correctamente.')
+        messages.success(self.request, '✅ Reserva actualizada correctamente.')
         return super().form_valid(form)
+
+    def form_invalid(self, form):
+        messages.error(
+            self.request,
+            '❌ No se pudo actualizar la reserva. Revisa los errores indicados.'
+        )
+        return super().form_invalid(form)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -148,9 +174,7 @@ class ReservaUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
 
 # ─────────────────────────────────────────────────────────────
-# DELETEVIEW — Elimina una reserva.
-# Solo se permite eliminar si el estado es 'pendiente'.
-# El docente solo puede eliminar sus propias reservas.
+# DELETEVIEW — Elimina una reserva
 # ─────────────────────────────────────────────────────────────
 class ReservaDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     """
@@ -167,28 +191,21 @@ class ReservaDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     success_url = reverse_lazy('reservas:lista')
 
     def test_func(self):
-        """
-        UserPassesTestMixin: define quién puede acceder.
-        Retorna True si el usuario tiene permiso de eliminar.
-        """
         reserva = self.get_object()
-        # Solo se puede eliminar si está pendiente
         if not reserva.es_pendiente:
             return False
-        # Administrador puede eliminar cualquier reserva pendiente
         if self.request.user.is_staff:
             return True
-        # Docente solo puede eliminar sus propias reservas
         return reserva.usuario == self.request.user
 
     def handle_no_permission(self):
-        """Mensaje de error cuando no se tiene permiso."""
         messages.error(
             self.request,
-            'No puedes eliminar esta reserva. Solo se pueden eliminar reservas en estado Pendiente.'
+            '⛔ No puedes eliminar esta reserva. '
+            'Solo se pueden eliminar reservas en estado Pendiente.'
         )
         return super().handle_no_permission()
 
     def form_valid(self, form):
-        messages.success(self.request, 'Reserva eliminada correctamente.')
+        messages.success(self.request, '🗑 Reserva eliminada correctamente.')
         return super().form_valid(form)

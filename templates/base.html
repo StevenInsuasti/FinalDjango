@@ -19,36 +19,46 @@
 
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body class="d-flex flex-column min-vh-100">
 
-    <!-- ── NAVBAR ── -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand fw-bold" href="{% url 'reservas:lista' %}">
-                <i class="bi bi-calendar-check"></i> Reservas Lab
+    <!-- ── NAVBAR MEJORADO ── -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold d-flex align-items-center" href="{% url 'reservas:lista' %}">
+                <i class="bi bi-calendar-check-fill me-2 fs-4"></i>
+                <span>Reservas Lab</span>
             </a>
             <button class="navbar-toggler" type="button"
-                    data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                    data-bs-toggle="collapse" data-bs-target="#navbarMain"
+                    aria-controls="navbarMain" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
 
             <div class="collapse navbar-collapse" id="navbarMain">
-                <ul class="navbar-nav me-auto">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     {% if user.is_authenticated %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'reservas:lista' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" 
+                           href="{% url 'reservas:dashboard' %}">
+                            <i class="bi bi-speedometer2"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'lista' %}active{% endif %}" 
+                           href="{% url 'reservas:lista' %}">
                             <i class="bi bi-list-ul"></i> Mis Reservas
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'reservas:crear' %}">
-                            <i class="bi bi-plus-circle"></i> Nueva Reserva
+                        <a class="nav-link {% if request.resolver_match.url_name == 'crear' %}active{% endif %}" 
+                           href="{% url 'reservas:crear' %}">
+                            <i class="bi bi-plus-circle-fill"></i> Nueva Reserva
                         </a>
                     </li>
                     {% if user.is_staff %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'admin:index' %}">
-                            <i class="bi bi-gear"></i> Administración
+                        <a class="nav-link" href="{% url 'admin:index' %}" target="_blank">
+                            <i class="bi bi-gear-fill"></i> Admin
                         </a>
                     </li>
                     {% endif %}
@@ -58,16 +68,26 @@
                 <ul class="navbar-nav ms-auto">
                     {% if user.is_authenticated %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#"
-                           data-bs-toggle="dropdown">
-                            <i class="bi bi-person-circle"></i>
-                            {{ user.get_full_name|default:user.username }}
+                        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#"
+                           id="userDropdown" role="button"
+                           data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-person-circle me-1 fs-5"></i>
+                            <span>{{ user.get_full_name|default:user.username }}</span>
+                            {% if user.is_staff %}
+                            <span class="badge bg-warning text-dark ms-2">Admin</span>
+                            {% endif %}
                         </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
+                        <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown">
                             <li>
-                                <form method="post" action="{% url 'logout' %}">
+                                <span class="dropdown-item-text text-muted small">
+                                    <i class="bi bi-envelope"></i> {{ user.email|default:"Sin email" }}
+                                </span>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form method="post" action="{% url 'logout' %}" class="d-inline">
                                     {% csrf_token %}
-                                    <button type="submit" class="dropdown-item">
+                                    <button type="submit" class="dropdown-item text-danger">
                                         <i class="bi bi-box-arrow-right"></i> Cerrar sesión
                                     </button>
                                 </form>
@@ -76,7 +96,7 @@
                     </li>
                     {% else %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'login' %}">
+                        <a class="nav-link btn btn-outline-light px-3" href="{% url 'login' %}">
                             <i class="bi bi-box-arrow-in-right"></i> Iniciar sesión
                         </a>
                     </li>
@@ -86,26 +106,51 @@
         </div>
     </nav>
 
-    <!-- ── MENSAJES FLASH ── -->
+    <!-- ── MENSAJES FLASH MEJORADOS ── -->
     {% if messages %}
     <div class="container mt-3">
         {% for message in messages %}
-        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert">
+            {% if message.tags == 'success' %}
+                <i class="bi bi-check-circle-fill me-2"></i>
+            {% elif message.tags == 'error' %}
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            {% elif message.tags == 'warning' %}
+                <i class="bi bi-exclamation-circle-fill me-2"></i>
+            {% else %}
+                <i class="bi bi-info-circle-fill me-2"></i>
+            {% endif %}
             {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
         {% endfor %}
     </div>
     {% endif %}
 
     <!-- ── CONTENIDO PRINCIPAL ── -->
-    <main class="container my-4">
+    <main class="container-fluid my-4 flex-grow-1">
         {% block content %}{% endblock %}
     </main>
 
-    <!-- ── FOOTER ── -->
-    <footer class="bg-light text-center text-muted py-3 mt-auto border-top">
-        <small>Sistema de Reservas de Laboratorios &copy; 2026 — Steven Insuasti</small>
+    <!-- ── FOOTER MEJORADO ── -->
+    <footer class="bg-light text-center text-muted py-4 mt-auto border-top">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-12">
+                    <p class="mb-1">
+                        <i class="bi bi-calendar-check-fill text-primary"></i>
+                        <strong>Sistema de Reservas de Laboratorios</strong>
+                    </p>
+                    <p class="small mb-0">
+                        &copy; 2026 Steven Insuasti | Electiva Django | 
+                        <i class="bi bi-github"></i> 
+                        <a href="https://github.com/StevenInsuasti/FinalDjango" target="_blank" class="text-decoration-none">
+                            GitHub
+                        </a>
+                    </p>
+                </div>
+            </div>
+        </div>
     </footer>
 
     <!-- Bootstrap 5 JS -->

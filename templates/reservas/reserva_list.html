@@ -5,14 +5,96 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-calendar-check"></i> Reservas de Laboratorios</h2>
+    {% if es_docente %}
     <a href="{% url 'reservas:crear' %}" class="btn btn-primary">
         <i class="bi bi-plus-circle"></i> Nueva Reserva
     </a>
+    {% endif %}
 </div>
 
-{# Este template será completado por el integrante responsable de las vistas CRUD #}
-<div class="alert alert-info">
-    <i class="bi bi-info-circle"></i>
-    Vista de listado pendiente de implementación por el equipo.
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-3">
+        <input
+            type="date"
+            name="fecha"
+            value="{{ request.GET.fecha }}"
+            class="form-control"
+        >
+    </div>
+    <div class="col-md-3">
+        <input
+            type="text"
+            name="laboratorio"
+            value="{{ request.GET.laboratorio }}"
+            class="form-control"
+            placeholder="Laboratorio"
+        >
+    </div>
+    <div class="col-md-3">
+        <select name="estado" class="form-select">
+            <option value="">Estado</option>
+            {% for key, label in estados %}
+            <option value="{{ key }}" {% if request.GET.estado == key %}selected{% endif %}>
+                {{ label }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-3 d-grid">
+        <button type="submit" class="btn btn-outline-primary">Filtrar</button>
+    </div>
+</form>
+
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Docente</th>
+                <th>Laboratorio</th>
+                <th>Fecha</th>
+                <th>Horario</th>
+                <th>Estado</th>
+                <th>Motivo</th>
+                <th class="text-end">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for reserva in reservas %}
+            <tr>
+                <td>{{ reserva.usuario.get_full_name|default:reserva.usuario.username }}</td>
+                <td>{{ reserva.laboratorio }}</td>
+                <td>{{ reserva.fecha }}</td>
+                <td>{{ reserva.hora_inicio }} - {{ reserva.hora_fin }}</td>
+                <td>{{ reserva.get_estado_display }}</td>
+                <td>{{ reserva.motivo }}</td>
+                <td class="text-end">
+                    {% if es_admin and reserva.es_pendiente %}
+                    <form method="post" action="{% url 'reservas:aprobar' reserva.pk %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-success">Aprobar</button>
+                    </form>
+                    <form method="post" action="{% url 'reservas:rechazar' reserva.pk %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-danger">Rechazar</button>
+                    </form>
+                    {% endif %}
+
+                    {% if reserva.usuario_id == user.id and reserva.es_pendiente %}
+                    <a href="{% url 'reservas:editar' reserva.pk %}" class="btn btn-sm btn-outline-primary">
+                        Editar
+                    </a>
+                    <a href="{% url 'reservas:eliminar' reserva.pk %}" class="btn btn-sm btn-outline-danger">
+                        Eliminar
+                    </a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" class="text-center text-muted">No hay reservas para mostrar.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
 {% endblock %}

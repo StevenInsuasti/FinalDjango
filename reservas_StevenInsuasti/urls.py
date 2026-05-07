@@ -1,7 +1,6 @@
 """
 URLs de la aplicación reservas_StevenInsuasti.
-CRUD completo de reservas usando vistas basadas en clases (CBV).
-Incluye dashboard de estadísticas y exportación CSV.
+CRUD completo + autenticación + aprobar/rechazar + dashboard + exportación CSV.
 """
 
 from django.urls import path
@@ -10,21 +9,21 @@ from . import views
 app_name = 'reservas'
 
 urlpatterns = [
-    # Dashboard con estadísticas
-    path('dashboard/', views.DashboardView.as_view(), name='dashboard'),
-    
-    # Lista de reservas (con filtros opcionales por fecha y laboratorio)
+    # ── Listado principal con filtros ──
     path('', views.ReservaListView.as_view(), name='lista'),
 
-    # Crear nueva reserva
+    # ── CRUD de reservas ──
     path('crear/', views.ReservaCreateView.as_view(), name='crear'),
-
-    # Editar reserva existente (solo si estado == pendiente)
     path('<int:pk>/editar/', views.ReservaUpdateView.as_view(), name='editar'),
-
-    # Eliminar reserva (solo si estado == pendiente)
     path('<int:pk>/eliminar/', views.ReservaDeleteView.as_view(), name='eliminar'),
-    
-    # Exportar reservas a CSV
+
+    # ── Acciones de administrador ──
+    path('<int:pk>/aprobar/', views.AprobarReservaView.as_view(), name='aprobar'),
+    path('<int:pk>/rechazar/', views.RechazarReservaView.as_view(), name='rechazar'),
+
+    # ── Dashboard de estadísticas ──
+    path('dashboard/', views.DashboardView.as_view(), name='dashboard'),
+
+    # ── Exportación CSV ──
     path('exportar-csv/', views.ExportarReservasCSVView.as_view(), name='exportar_csv'),
 ]

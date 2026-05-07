@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ titulo }} — Reservas Lab{% endblock %}
+{% block title %}{{ titulo|default:"Reserva" }} — Reservas Lab{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
@@ -8,16 +8,12 @@
         <div class="card shadow-sm">
             <div class="card-header bg-primary text-white">
                 <h4 class="mb-0">
-                    <i class="bi bi-calendar-plus"></i> {{ titulo }}
+                    <i class="bi bi-calendar-plus"></i>
+                    {% if object %}Editar Reserva{% else %}Nueva Reserva{% endif %}
                 </h4>
             </div>
             <div class="card-body p-4">
 
-                <!-- ══════════════════════════════════════════
-                     ERRORES GENERALES DEL FORMULARIO
-                     Aquí aparecen los errores de validación cruzada,
-                     como el conflicto de horario detectado en forms.py clean().
-                     ══════════════════════════════════════════ -->
                 {% if form.non_field_errors %}
                 <div class="alert alert-danger d-flex align-items-start gap-2" role="alert">
                     <i class="bi bi-exclamation-triangle-fill fs-5 mt-1 flex-shrink-0"></i>
@@ -43,32 +39,19 @@
                             <span class="text-danger" title="Campo obligatorio">*</span>
                             {% endif %}
                         </label>
-
-                        {# Agregar clase is-invalid si el campo tiene errores #}
+                        {{ field }}
                         {% if field.errors %}
-                            {% with field.field.widget.attrs as attrs %}
-                                {{ field }}
-                            {% endwith %}
-                            <div class="invalid-feedback d-block">
-                                {% for error in field.errors %}
-                                <p class="mb-0">
-                                    <i class="bi bi-exclamation-circle"></i> {{ error }}
-                                </p>
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            {{ field }}
-                        {% endif %}
-
-                        {% if field.help_text %}
-                        <div class="form-text text-muted">
-                            <i class="bi bi-info-circle"></i> {{ field.help_text }}
+                        <div class="invalid-feedback d-block">
+                            {% for error in field.errors %}
+                            <p class="mb-0">
+                                <i class="bi bi-exclamation-circle"></i> {{ error }}
+                            </p>
+                            {% endfor %}
                         </div>
                         {% endif %}
                     </div>
                     {% endfor %}
 
-                    <!-- Nota informativa sobre validación de horarios -->
                     <div class="alert alert-light border mt-2 mb-3 py-2 px-3">
                         <small class="text-muted">
                             <i class="bi bi-shield-check text-success"></i>
@@ -79,7 +62,8 @@
 
                     <div class="d-flex gap-2 mt-3">
                         <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-check-circle"></i> {{ boton }}
+                            <i class="bi bi-check-circle"></i>
+                            {{ boton|default:"Guardar" }}
                         </button>
                         <a href="{% url 'reservas:lista' %}" class="btn btn-outline-secondary">
                             <i class="bi bi-arrow-left"></i> Cancelar

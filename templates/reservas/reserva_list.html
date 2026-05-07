@@ -5,41 +5,29 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-calendar-check"></i> Reservas de Laboratorios</h2>
+    {% if es_docente %}
     <a href="{% url 'reservas:crear' %}" class="btn btn-primary">
         <i class="bi bi-plus-circle"></i> Nueva Reserva
     </a>
+    {% endif %}
 </div>
 
-<!-- ══════════════════════════════════════════
-     FORMULARIO DE FILTROS
-     Filtro por fecha (exacta) y por laboratorio (parcial).
-     Los valores se envían por GET para que sean compartibles por URL.
-     ══════════════════════════════════════════ -->
+<!-- ── FORMULARIO DE FILTROS ── -->
 <form method="get" class="card card-body bg-light mb-4 shadow-sm" id="form-filtros">
     <div class="row g-2 align-items-end">
 
-        <!-- Filtro por fecha -->
-        <div class="col-md-4">
+        <div class="col-md-3">
             <label for="{{ filtro_form.fecha.id_for_label }}" class="form-label fw-semibold">
-                <i class="bi bi-calendar-date"></i> Filtrar por fecha
+                <i class="bi bi-calendar-date"></i> Fecha
             </label>
             {{ filtro_form.fecha }}
-            {% if filtro_form.fecha.errors %}
-            <div class="text-danger small mt-1">
-                {% for error in filtro_form.fecha.errors %}
-                <span><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
-                {% endfor %}
-            </div>
-            {% endif %}
         </div>
 
-        <!-- Filtro por laboratorio con sugerencias (datalist) -->
-        <div class="col-md-4">
+        <div class="col-md-3">
             <label for="{{ filtro_form.laboratorio.id_for_label }}" class="form-label fw-semibold">
-                <i class="bi bi-building"></i> Filtrar por laboratorio
+                <i class="bi bi-building"></i> Laboratorio
             </label>
             {{ filtro_form.laboratorio }}
-            <!-- datalist: muestra los laboratorios existentes como sugerencias -->
             <datalist id="laboratorios-sugeridos">
                 {% for lab in laboratorios_disponibles %}
                 <option value="{{ lab }}">
@@ -47,10 +35,23 @@
             </datalist>
         </div>
 
-        <!-- Botones -->
-        <div class="col-md-2">
+        <div class="col-md-3">
+            <label class="form-label fw-semibold">
+                <i class="bi bi-flag"></i> Estado
+            </label>
+            <select name="estado" class="form-select">
+                <option value="">Todos</option>
+                {% for key, label in estados %}
+                <option value="{{ key }}" {% if request.GET.estado == key %}selected{% endif %}>
+                    {{ label }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-1">
             <button type="submit" class="btn btn-primary w-100">
-                <i class="bi bi-search"></i> Filtrar
+                <i class="bi bi-search"></i>
             </button>
         </div>
         <div class="col-md-2">
@@ -60,12 +61,10 @@
         </div>
     </div>
 
-    <!-- Indicador de filtros activos -->
     {% if filtro_fecha or filtro_laboratorio %}
     <div class="mt-2">
         <small class="text-muted">
-            <i class="bi bi-funnel-fill text-primary"></i>
-            Filtros activos:
+            <i class="bi bi-funnel-fill text-primary"></i> Filtros activos:
             {% if filtro_fecha %}
             <span class="badge bg-primary">Fecha: {{ filtro_fecha }}</span>
             {% endif %}
@@ -77,19 +76,16 @@
     {% endif %}
 </form>
 
-<!-- ══════════════════════════════════════════
-     TABLA DE RESERVAS
-     ══════════════════════════════════════════ -->
-{% if reservas %}
+<!-- ── TABLA DE RESERVAS ── -->
 <div class="table-responsive">
     <table class="table table-hover table-reservas align-middle">
         <thead class="table-dark">
             <tr>
+                {% if es_admin %}<th><i class="bi bi-person"></i> Docente</th>{% endif %}
                 <th><i class="bi bi-building"></i> Laboratorio</th>
                 <th><i class="bi bi-calendar"></i> Fecha</th>
                 <th><i class="bi bi-clock"></i> Horario</th>
                 <th>Motivo</th>
-                {% if user.is_staff %}<th><i class="bi bi-person"></i> Docente</th>{% endif %}
                 <th>Estado</th>
                 <th class="text-center">Acciones</th>
             </tr>
@@ -97,6 +93,9 @@
         <tbody>
             {% for reserva in reservas %}
             <tr>
+                {% if es_admin %}
+                <td>{{ reserva.usuario.get_full_name|default:reserva.usuario.username }}</td>
+                {% endif %}
                 <td><strong>{{ reserva.laboratorio }}</strong></td>
                 <td>{{ reserva.fecha }}</td>
                 <td>
@@ -105,27 +104,50 @@
                     </span>
                 </td>
                 <td>{{ reserva.motivo|truncatechars:50 }}</td>
-                {% if user.is_staff %}
-                <td>{{ reserva.usuario.get_full_name|default:reserva.usuario.username }}</td>
-                {% endif %}
                 <td>
                     <span class="badge badge-{{ reserva.estado }}">
                         {{ reserva.get_estado_display }}
                     </span>
                 </td>
                 <td class="text-center">
-                    {% if reserva.es_pendiente %}
+                    <!-- Botones de Aprobar/Rechazar (solo Administrador) -->
+                    {% if es_admin and reserva.es_pendiente %}
+                    <form method="post" action="{% url 'reservas:aprobar' reserva.pk %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-success" title="Aprobar">
+                            <i class="bi bi-check-circle"></i>
+                        </button>
+                    </form>
+                    <form method="post" action="{% url 'reservas:rechazar' reserva.pk %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-danger" title="Rechazar">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    <!-- Botones de Editar/Eliminar (solo Docente dueño, estado pendiente) -->
+                    {% if reserva.usuario_id == user.id and reserva.es_pendiente %}
                     <a href="{% url 'reservas:editar' reserva.pk %}"
-                       class="btn btn-sm btn-warning" title="Editar reserva">
+                       class="btn btn-sm btn-warning" title="Editar">
                         <i class="bi bi-pencil"></i>
                     </a>
                     <a href="{% url 'reservas:eliminar' reserva.pk %}"
-                       class="btn btn-sm btn-danger" title="Eliminar reserva">
+                       class="btn btn-sm btn-outline-danger" title="Eliminar">
                         <i class="bi bi-trash"></i>
                     </a>
-                    {% else %}
+                    {% endif %}
+
+                    {% if not es_admin and not reserva.es_pendiente %}
                     <span class="text-muted small">—</span>
                     {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" class="text-center text-muted py-4">
+                    <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                    No hay reservas para mostrar.
                 </td>
             </tr>
             {% endfor %}
@@ -133,9 +155,9 @@
     </table>
 </div>
 
-<!-- Paginación (preserva los filtros activos en los links) -->
+<!-- ── PAGINACIÓN ── -->
 {% if is_paginated %}
-<nav aria-label="Paginación de reservas">
+<nav aria-label="Paginación">
     <ul class="pagination justify-content-center">
         {% if page_obj.has_previous %}
         <li class="page-item">
@@ -162,31 +184,10 @@
 </nav>
 {% endif %}
 
-{% else %}
-<!-- Mensaje cuando no hay resultados -->
-<div class="alert alert-info text-center py-4">
-    <i class="bi bi-info-circle fs-3 d-block mb-2"></i>
-    {% if filtro_fecha or filtro_laboratorio %}
-        No se encontraron reservas con los filtros aplicados.
-        <br>
-        <a href="{% url 'reservas:lista' %}" class="btn btn-sm btn-outline-primary mt-2">
-            <i class="bi bi-x-circle"></i> Limpiar filtros
-        </a>
-    {% else %}
-        No hay reservas registradas aún.
-        <br>
-        <a href="{% url 'reservas:crear' %}" class="btn btn-sm btn-primary mt-2">
-            <i class="bi bi-plus-circle"></i> Crear primera reserva
-        </a>
-    {% endif %}
-</div>
-{% endif %}
-
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    // Conectar el input de laboratorio con el datalist de sugerencias
     const inputLab = document.getElementById('{{ filtro_form.laboratorio.id_for_label }}');
     if (inputLab) {
         inputLab.setAttribute('list', 'laboratorios-sugeridos');

@@ -142,9 +142,9 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # ─────────────────────────────────────────────
 # AUTENTICACIÓN — REDIRECCIONES
 # ─────────────────────────────────────────────
-LOGIN_URL = '/login/'
+LOGIN_URL = '/auth/login/'
 LOGIN_REDIRECT_URL = '/reservas/'
-LOGOUT_REDIRECT_URL = '/login/'
+LOGOUT_REDIRECT_URL = '/auth/login/'
 
 
 # ─────────────────────────────────────────────

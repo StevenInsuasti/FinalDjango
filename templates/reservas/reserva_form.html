@@ -12,39 +12,70 @@
                 </h4>
             </div>
             <div class="card-body p-4">
+
+                <!-- ══════════════════════════════════════════
+                     ERRORES GENERALES DEL FORMULARIO
+                     Aquí aparecen los errores de validación cruzada,
+                     como el conflicto de horario detectado en forms.py clean().
+                     ══════════════════════════════════════════ -->
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger d-flex align-items-start gap-2" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill fs-5 mt-1 flex-shrink-0"></i>
+                    <div>
+                        <strong>No se puede guardar la reserva:</strong>
+                        <ul class="mb-0 mt-1 ps-3">
+                            {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
+
                 <form method="post" novalidate>
                     {% csrf_token %}
 
                     {% for field in form %}
                     <div class="mb-3">
-                        <label for="{{ field.id_for_label }}" class="form-label">
+                        <label for="{{ field.id_for_label }}" class="form-label fw-semibold">
                             {{ field.label }}
                             {% if field.field.required %}
-                            <span class="text-danger">*</span>
+                            <span class="text-danger" title="Campo obligatorio">*</span>
                             {% endif %}
                         </label>
-                        {{ field }}
+
+                        {# Agregar clase is-invalid si el campo tiene errores #}
                         {% if field.errors %}
-                        <div class="text-danger small mt-1">
-                            {% for error in field.errors %}
-                            <p class="mb-0"><i class="bi bi-exclamation-circle"></i> {{ error }}</p>
-                            {% endfor %}
-                        </div>
+                            {% with field.field.widget.attrs as attrs %}
+                                {{ field }}
+                            {% endwith %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in field.errors %}
+                                <p class="mb-0">
+                                    <i class="bi bi-exclamation-circle"></i> {{ error }}
+                                </p>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ field }}
                         {% endif %}
+
                         {% if field.help_text %}
-                        <div class="form-text text-muted">{{ field.help_text }}</div>
+                        <div class="form-text text-muted">
+                            <i class="bi bi-info-circle"></i> {{ field.help_text }}
+                        </div>
                         {% endif %}
                     </div>
                     {% endfor %}
 
-                    <!-- Errores no asociados a un campo específico (ej: conflicto de horario) -->
-                    {% if form.non_field_errors %}
-                    <div class="alert alert-danger">
-                        {% for error in form.non_field_errors %}
-                        <p class="mb-0"><i class="bi bi-exclamation-triangle"></i> {{ error }}</p>
-                        {% endfor %}
+                    <!-- Nota informativa sobre validación de horarios -->
+                    <div class="alert alert-light border mt-2 mb-3 py-2 px-3">
+                        <small class="text-muted">
+                            <i class="bi bi-shield-check text-success"></i>
+                            El sistema verificará automáticamente que no existan
+                            <strong>conflictos de horario</strong> en el mismo laboratorio y fecha.
+                        </small>
                     </div>
-                    {% endif %}
 
                     <div class="d-flex gap-2 mt-3">
                         <button type="submit" class="btn btn-primary">
@@ -55,6 +86,7 @@
                         </a>
                     </div>
                 </form>
+
             </div>
         </div>
     </div>

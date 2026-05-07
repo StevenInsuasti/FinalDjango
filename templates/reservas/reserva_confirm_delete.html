@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block title %}Eliminar Reserva — Reservas Lab{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow-sm border-danger">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0">
+                    <i class="bi bi-trash"></i> Eliminar Reserva
+                </h4>
+            </div>
+            <div class="card-body p-4">
+                <p class="fs-5">¿Estás seguro de que deseas eliminar esta reserva?</p>
+
+                <!-- Detalle de la reserva a eliminar -->
+                <ul class="list-group mb-4">
+                    <li class="list-group-item">
+                        <strong><i class="bi bi-building"></i> Laboratorio:</strong>
+                        {{ object.laboratorio }}
+                    </li>
+                    <li class="list-group-item">
+                        <strong><i class="bi bi-calendar"></i> Fecha:</strong>
+                        {{ object.fecha }}
+                    </li>
+                    <li class="list-group-item">
+                        <strong><i class="bi bi-clock"></i> Horario:</strong>
+                        {{ object.hora_inicio }} – {{ object.hora_fin }}
+                    </li>
+                    <li class="list-group-item">
+                        <strong><i class="bi bi-chat-text"></i> Motivo:</strong>
+                        {{ object.motivo }}
+                    </li>
+                    <li class="list-group-item">
+                        <strong><i class="bi bi-flag"></i> Estado:</strong>
+                        <span class="badge badge-{{ object.estado }}">
+                            {{ object.get_estado_display }}
+                        </span>
+                    </li>
+                </ul>
+
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Esta acción <strong>no se puede deshacer</strong>.
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash"></i> Sí, eliminar
+                        </button>
+                        <a href="{% url 'reservas:lista' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

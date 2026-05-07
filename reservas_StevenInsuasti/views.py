@@ -7,10 +7,14 @@ Mixins utilizados:
 - UserPassesTestMixin: permite definir una condición personalizada de acceso.
 """
 
+import csv
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib import messages
 from django.urls import reverse_lazy
-from django.views.generic import ListView, CreateView, UpdateView, DeleteView
+from django.views.generic import ListView, CreateView, UpdateView, DeleteView, TemplateView
+from django.http import HttpResponse
+from django.db.models import Count, Q
+from django.views import View
 
 from .models import Reserva
 from .forms import ReservaForm, ReservaFiltroForm
@@ -225,3 +229,140 @@ class ReservaDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     def form_valid(self, form):
         messages.success(self.request, '🗑 Reserva eliminada correctamente.')
         return super().form_valid(form)
+
+
+# ─────────────────────────────────────────────────────────────
+# DASHBOARD — Vista de estadísticas y reportes
+# ─────────────────────────────────────────────────────────────
+class DashboardView(LoginRequiredMixin, TemplateView):
+    """
+    Dashboard con estadísticas de reservas.
+    
+    Muestra:
+    - Total de reservas
+    - Reservas aprobadas
+    - Reservas rechazadas
+    - Reservas pendientes
+    - Reservas por laboratorio
+    - Reservas por usuario (solo para administradores)
+    """
+    
+    template_name = 'reservas/dashboard.html'
+    
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        
+        # Filtrar reservas según el rol del usuario
+        if self.request.user.is_staff:
+            # Administrador ve todas las reservas
+            reservas = Reserva.objects.all()
+        else:
+            # Docente solo ve sus propias reservas
+            reservas = Reserva.objects.filter(usuario=self.request.user)
+        
+        # ── Estadísticas generales ──
+        ctx['total_reservas'] = reservas.count()
+        ctx['reservas_aprobadas'] = reservas.filter(estado=Reserva.ESTADO_APROBADA).count()
+        ctx['reservas_rechazadas'] = reservas.filter(estado=Reserva.ESTADO_RECHAZADA).count()
+        ctx['reservas_pendientes'] = reservas.filter(estado=Reserva.ESTADO_PENDIENTE).count()
+        
+        # ── Reservas por laboratorio ──
+        ctx['reservas_por_laboratorio'] = (
+            reservas.values('laboratorio')
+            .annotate(total=Count('id'))
+            .order_by('-total')
+        )
+        
+        # ── Reservas por estado y laboratorio (para gráficos) ──
+        ctx['reservas_por_lab_estado'] = (
+            reservas.values('laboratorio', 'estado')
+            .annotate(total=Count('id'))
+            .order_by('laboratorio', 'estado')
+        )
+        
+        # ── Reservas por usuario (solo para administradores) ──
+        if self.request.user.is_staff:
+            ctx['reservas_por_usuario'] = (
+                reservas.values('usuario__username', 'usuario__first_name', 'usuario__last_name')
+                .annotate(total=Count('id'))
+                .order_by('-total')[:10]  # Top 10 usuarios
+            )
+        
+        # ── Últimas reservas ──
+        ctx['ultimas_reservas'] = reservas.select_related('usuario').order_by('-fecha_creacion')[:5]
+        
+        return ctx
+
+
+# ─────────────────────────────────────────────────────────────
+# EXPORTAR CSV — Exporta reservas a formato CSV
+# ─────────────────────────────────────────────────────────────
+class ExportarReservasCSVView(LoginRequiredMixin, View):
+    """
+    Exporta las reservas a un archivo CSV.
+    
+    - Docente: exporta solo sus propias reservas.
+    - Administrador: exporta todas las reservas.
+    - Respeta los filtros de fecha y laboratorio si se proporcionan.
+    """
+    
+    def get(self, request, *args, **kwargs):
+        # Crear respuesta HTTP con tipo CSV
+        response = HttpResponse(content_type='text/csv; charset=utf-8')
+        response['Content-Disposition'] = 'attachment; filename="reservas.csv"'
+        
+        # Agregar BOM para que Excel reconozca UTF-8
+        response.write('\ufeff')
+        
+        # Crear escritor CSV
+        writer = csv.writer(response)
+        
+        # Escribir encabezados
+        writer.writerow([
+            'ID',
+            'Usuario',
+            'Nombre Completo',
+            'Laboratorio',
+            'Fecha',
+            'Hora Inicio',
+            'Hora Fin',
+            'Estado',
+            'Motivo',
+            'Fecha Creación'
+        ])
+        
+        # Obtener reservas según el rol
+        if request.user.is_staff:
+            reservas = Reserva.objects.all()
+        else:
+            reservas = Reserva.objects.filter(usuario=request.user)
+        
+        # Aplicar filtros si existen
+        fecha = request.GET.get('fecha')
+        laboratorio = request.GET.get('laboratorio')
+        
+        if fecha:
+            reservas = reservas.filter(fecha=fecha)
+        
+        if laboratorio:
+            reservas = reservas.filter(laboratorio__icontains=laboratorio)
+        
+        # Ordenar por fecha descendente
+        reservas = reservas.select_related('usuario').order_by('-fecha', 'hora_inicio')
+        
+        # Escribir datos
+        for reserva in reservas:
+            writer.writerow([
+                reserva.id,
+                reserva.usuario.username,
+                reserva.usuario.get_full_name() or '-',
+                reserva.laboratorio,
+                reserva.fecha.strftime('%Y-%m-%d'),
+                reserva.hora_inicio.strftime('%H:%M'),
+                reserva.hora_fin.strftime('%H:%M'),
+                reserva.get_estado_display(),
+                reserva.motivo,
+                reserva.fecha_creacion.strftime('%Y-%m-%d %H:%M:%S')
+            ])
+        
+        return response

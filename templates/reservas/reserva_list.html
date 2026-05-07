@@ -10,9 +10,107 @@
     </a>
 </div>
 
-{# Este template será completado por el integrante responsable de las vistas CRUD #}
-<div class="alert alert-info">
-    <i class="bi bi-info-circle"></i>
-    Vista de listado pendiente de implementación por el equipo.
+<!-- Filtros -->
+<form method="get" class="row g-2 mb-4">
+    <div class="col-md-4">
+        <input type="date" name="fecha" value="{{ filtro_fecha }}"
+               class="form-control" placeholder="Filtrar por fecha">
+    </div>
+    <div class="col-md-4">
+        <input type="text" name="laboratorio" value="{{ filtro_laboratorio }}"
+               class="form-control" placeholder="Filtrar por laboratorio">
+    </div>
+    <div class="col-md-2">
+        <button type="submit" class="btn btn-outline-primary w-100">
+            <i class="bi bi-search"></i> Filtrar
+        </button>
+    </div>
+    <div class="col-md-2">
+        <a href="{% url 'reservas:lista' %}" class="btn btn-outline-secondary w-100">
+            <i class="bi bi-x-circle"></i> Limpiar
+        </a>
+    </div>
+</form>
+
+<!-- Tabla de reservas -->
+{% if reservas %}
+<div class="table-responsive">
+    <table class="table table-hover table-reservas align-middle">
+        <thead>
+            <tr>
+                <th>Laboratorio</th>
+                <th>Fecha</th>
+                <th>Horario</th>
+                <th>Motivo</th>
+                {% if user.is_staff %}<th>Docente</th>{% endif %}
+                <th>Estado</th>
+                <th class="text-center">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for reserva in reservas %}
+            <tr>
+                <td><i class="bi bi-building"></i> {{ reserva.laboratorio }}</td>
+                <td>{{ reserva.fecha }}</td>
+                <td>{{ reserva.hora_inicio }} – {{ reserva.hora_fin }}</td>
+                <td>{{ reserva.motivo|truncatechars:50 }}</td>
+                {% if user.is_staff %}
+                <td>{{ reserva.usuario.get_full_name|default:reserva.usuario.username }}</td>
+                {% endif %}
+                <td>
+                    <span class="badge badge-{{ reserva.estado }}">
+                        {{ reserva.get_estado_display }}
+                    </span>
+                </td>
+                <td class="text-center">
+                    {% if reserva.es_pendiente %}
+                    <a href="{% url 'reservas:editar' reserva.pk %}"
+                       class="btn btn-sm btn-warning" title="Editar">
+                        <i class="bi bi-pencil"></i>
+                    </a>
+                    <a href="{% url 'reservas:eliminar' reserva.pk %}"
+                       class="btn btn-sm btn-danger" title="Eliminar">
+                        <i class="bi bi-trash"></i>
+                    </a>
+                    {% else %}
+                    <span class="text-muted small">Sin acciones</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
+
+<!-- Paginación -->
+{% if is_paginated %}
+<nav>
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}&fecha={{ filtro_fecha }}&laboratorio={{ filtro_laboratorio }}">
+                &laquo; Anterior
+            </a>
+        </li>
+        {% endif %}
+        <li class="page-item disabled">
+            <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+        </li>
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}&fecha={{ filtro_fecha }}&laboratorio={{ filtro_laboratorio }}">
+                Siguiente &raquo;
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<div class="alert alert-info text-center">
+    <i class="bi bi-info-circle fs-4"></i>
+    <p class="mb-0 mt-2">No hay reservas registradas{% if filtro_fecha or filtro_laboratorio %} con los filtros aplicados{% endif %}.</p>
+</div>
+{% endif %}
 {% endblock %}
